@@ -35,6 +35,13 @@
             margin-bottom: 5px;
         }
         
+        #high-score {
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
         #level-header {
             color: var(--success);
             font-size: 1.2rem;
@@ -153,13 +160,14 @@
 
         .action-btn:hover { background-color: #fff; }
         .action-btn:disabled { background-color: #555; cursor: not-allowed; color: #888; }
-
-        .strike-board {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            font-size: 1.5rem;
+        
+        #btn-reset {
+            background-color: var(--danger);
+            color: white;
+            font-size: 1rem;
+        }
+        #btn-reset:hover {
+            background-color: #ff6666;
         }
 
         .error-shake {
@@ -181,6 +189,7 @@
 <body>
 
     <h1>Body Construction Site</h1>
+    <div id="high-score">Highest Shift Reached: 1</div>
     <div id="level-header">Shift 1 of 7</div>
 
     <div class="container">
@@ -225,6 +234,7 @@
             <div class="walkie-talkie" id="status-box"></div>
 
             <button class="action-btn" id="btn-sleep">End Shift (Go to Sleep)</button>
+            <button class="action-btn" id="btn-reset">Restart Campaign</button>
         </div>
     </div>
 
@@ -325,7 +335,7 @@
         }
 
         function updateCounters() {
-            const targets = levels[currentLevelIndex].targets;
+            const targets = levels[currentLevelIndex] ? levels[currentLevelIndex].targets : {amino:0, mineral:0, calories:0};
             document.getElementById('count-amino').innerText = `Amino Bricks: ${placed.amino} / ${targets.amino}`;
             document.getElementById('count-mineral').innerText = `Minerals: ${placed.mineral} / ${targets.mineral}`;
             document.getElementById('count-calories').innerText = `Calories: ${placed.calories} / ${targets.calories}`;
@@ -353,6 +363,12 @@
         }
 
         function loadLevel(index) {
+            // Save the progress to the browser's memory
+            localStorage.setItem('bodySimProgress', index);
+            
+            // Update the High Score display
+            document.getElementById('high-score').innerText = `Highest Shift Reached: ${index + 1}`;
+
             if (index >= levels.length) {
                 updateStatus("CAMPAIGN COMPLETE. You built a solid, flexible kid who grew taller. Boss is happy.", "success");
                 dock.innerHTML = "<h2>No more shifts.</h2>";
@@ -477,8 +493,24 @@
             }
         });
 
+        // Reset Logic
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            if(confirm("Are you sure you want to fire the crew and start from Shift 1?")) {
+                localStorage.removeItem('bodySimProgress');
+                currentLevelIndex = 0;
+                document.getElementById('btn-sleep').style.display = 'block'; // ensure sleep button is visible
+                loadLevel(0);
+                updateStatus("Campaign reset. Back to the bottom rung.", "info");
+            }
+        });
+
         // Initialize Game
+        const savedLevel = localStorage.getItem('bodySimProgress');
+        if (savedLevel) {
+            currentLevelIndex = parseInt(savedLevel);
+        }
         loadLevel(currentLevelIndex);
+        
     </script>
 </body>
 </html>
