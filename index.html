@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Body Construction Simulator: The 7 Shifts</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --yellow: #ffd700;
+            --danger: #ff4444;
+            --success: #00C851;
+            --panel: #222;
+            --text: #eee;
+            --border: #444;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--yellow);
+            text-transform: uppercase;
+            border-bottom: 4px dashed var(--yellow);
+            padding-bottom: 10px;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        #level-header {
+            color: var(--success);
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            gap: 20px;
+            width: 100%;
+            max-width: 1300px;
+        }
+
+        .panel {
+            background-color: var(--panel);
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            padding: 15px;
+            min-height: 400px;
+        }
+
+        .panel h2 {
+            font-size: 1.1rem;
+            color: var(--yellow);
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        /* Draggables */
+        .item {
+            background-color: #333;
+            border: 2px solid #666;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+            cursor: grab;
+            text-align: center;
+            font-weight: bold;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+        
+        .item:active {
+            cursor: grabbing;
+            transform: scale(0.95);
+        }
+
+        .item.protein { border-color: #ff8800; color: #ffbc66; }
+        .item.mineral { border-color: #33b5e5; color: #99dfff;}
+        .item.calories { border-color: #ffbb33; color: #ffe099;}
+        .item.amino { border-color: var(--success); background-color: #1b5e20; color: #fff; }
+
+        /* Dropzones */
+        .dropzone {
+            border: 3px dashed #555;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+            transition: all 0.2s ease;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #1a1a1a;
+        }
+
+        .dropzone.drag-over {
+            border-color: var(--yellow);
+            background-color: rgba(255, 215, 0, 0.05);
+            transform: scale(1.02);
+        }
+
+        .zone-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 5px; }
+        .zone-desc { font-size: 0.8rem; color: #aaa; }
+        .zone-counter { font-size: 0.9rem; margin-top: 10px; color: var(--yellow); }
+
+        #stomach-zone { border-color: #ff8800; }
+        #muscle-zone { border-color: var(--danger); }
+        #bone-zone { border-color: #ddd; }
+        #fat-zone { border-color: #ffbb33; }
+
+        /* Status & Terminal */
+        .walkie-talkie {
+            background-color: #0a0a0a;
+            color: var(--success);
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            min-height: 120px;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+            line-height: 1.4;
+        }
+
+        .action-btn {
+            background-color: var(--yellow);
+            color: #000;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            transition: background 0.2s;
+        }
+
+        .action-btn:hover { background-color: #fff; }
+        .action-btn:disabled { background-color: #555; cursor: not-allowed; color: #888; }
+
+        .strike-board {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+
+        .error-shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Body Construction Site</h1>
+    <div id="level-header">Shift 1 of 7</div>
+
+    <div class="container">
+        <!-- Inventory Panel -->
+        <div class="panel">
+            <h2>Loading Dock (Food)</h2>
+            <div id="loading-dock"></div>
+        </div>
+
+        <!-- Body Zones Panel -->
+        <div class="panel">
+            <h2>The Body (Worksite)</h2>
+            
+            <div class="dropzone" id="stomach-zone">
+                <div class="zone-title" style="color:#ff8800">Stomach (Demolition)</div>
+                <div class="zone-desc">Smash complicated chains here.</div>
+            </div>
+
+            <div class="dropzone" id="muscle-zone">
+                <div class="zone-title" style="color:var(--danger)">Muscles & Skin</div>
+                <div class="zone-desc">Needs flexible ruler-like materials.</div>
+                <div class="zone-counter" id="count-amino">Amino Bricks: 0 / 0</div>
+            </div>
+
+            <div class="dropzone" id="bone-zone">
+                <div class="zone-title" style="color:#ddd">Bone Bank (Closes at 20)</div>
+                <div class="zone-desc">Needs concrete/heavy materials.</div>
+                <div class="zone-counter" id="count-mineral">Minerals: 0 / 0</div>
+            </div>
+
+            <div class="dropzone" id="fat-zone">
+                <div class="zone-title" style="color:#ffbb33">Fat Storage Closet</div>
+                <div class="zone-desc">Dump excess electricity here.</div>
+                <div class="zone-counter" id="count-calories">Calories: 0 / 0</div>
+            </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="panel">
+            <h2>Site Controls</h2>
+            
+            <div class="walkie-talkie" id="status-box"></div>
+
+            <button class="action-btn" id="btn-sleep">End Shift (Go to Sleep)</button>
+        </div>
+    </div>
+
+    <script>
+        // Game Data & Levels based strictly on the PDF
+        const levels = [
+            {
+                id: 1,
+                title: "Shift 1: Basic Demolition",
+                intro: "The foreman wants to see if you know how to fix a scraped knee. You can't use a whole chicken. Smash it first.",
+                items: [ { id: 'i1', type: 'protein', label: '🍗 Chicken (Chain)' } ],
+                targets: { amino: 1, mineral: 0, calories: 0 }
+            },
+            {
+                id: 2,
+                title: "Shift 2: The Foundation",
+                intro: "Time to avoid glass bones. Route this heavy concrete directly to the Bone Bank.",
+                items: [ { id: 'i2', type: 'mineral', label: '🥛 Milk (Calcium)' } ],
+                targets: { amino: 0, mineral: 1, calories: 0 }
+            },
+            {
+                id: 3,
+                title: "Shift 3: Mixed Load",
+                intro: "Protein for the muscles, calcium for the bones. Don't mix them up. A muscle made of concrete won't bend.",
+                items: [ 
+                    { id: 'i3', type: 'protein', label: '🥩 Meat (Chain)' },
+                    { id: 'i4', type: 'mineral', label: '🧀 Cheese (Calcium)' }
+                ],
+                targets: { amino: 1, mineral: 1, calories: 0 }
+            },
+            {
+                id: 4,
+                title: "Shift 4: Managing Excess",
+                intro: "The kid ate too much electricity. Store the excess, and process the protein.",
+                items: [ 
+                    { id: 'i5', type: 'protein', label: '🫘 Beans (Chain)' },
+                    { id: 'i6', type: 'calories', label: '🍬 Candy (Energy)' }
+                ],
+                targets: { amino: 1, mineral: 0, calories: 1 }
+            },
+            {
+                id: 5,
+                title: "Shift 5: Master Builder Meal",
+                intro: "Salmon and Milk. The ultimate construction combo. Plus some broccoli for extra concrete.",
+                items: [ 
+                    { id: 'i7', type: 'protein', label: '🐟 Salmon (Chain)' },
+                    { id: 'i8', type: 'mineral', label: '🥛 Milk (Calcium)' },
+                    { id: 'i9', type: 'mineral', label: '🥦 Broccoli (Calcium)' }
+                ],
+                targets: { amino: 1, mineral: 2, calories: 0 }
+            },
+            {
+                id: 6,
+                title: "Shift 6: Demolition Overload",
+                intro: "Heavy protein load. The demolition crew is going to be busy. Route the fat to the closet.",
+                items: [ 
+                    { id: 'i10', type: 'protein', label: '🍗 Chicken (Chain)' },
+                    { id: 'i11', type: 'protein', label: '🥚 Eggs (Chain)' },
+                    { id: 'i12', type: 'protein', label: '🥩 Meat (Chain)' },
+                    { id: 'i13', type: 'calories', label: '🍩 Donut (Energy)' }
+                ],
+                targets: { amino: 3, mineral: 0, calories: 1 }
+            },
+            {
+                id: 7,
+                title: "Shift 7: The 4th Grade Vault Crisis",
+                intro: "The loading dock is packed. The age 20 vault door is closing. Sort everything perfectly or get fired. One mistake = restart.",
+                items: [ 
+                    { id: 'i14', type: 'protein', label: '🐟 Fish (Chain)' },
+                    { id: 'i15', type: 'protein', label: '🫘 Beans (Chain)' },
+                    { id: 'i16', type: 'mineral', label: '🥛 Yogurt (Calcium)' },
+                    { id: 'i17', type: 'mineral', label: '🧀 Cheese (Calcium)' },
+                    { id: 'i18', type: 'mineral', label: '🥦 Broccoli (Calcium)' },
+                    { id: 'i19', type: 'calories', label: '🍬 Candy (Energy)' },
+                    { id: 'i20', type: 'calories', label: '🧁 Cupcake (Energy)' }
+                ],
+                targets: { amino: 2, mineral: 3, calories: 2 }
+            }
+        ];
+
+        let currentLevelIndex = 0;
+        let placed = { amino: 0, mineral: 0, calories: 0 };
+        let draggedElement = null;
+
+        // UI Elements
+        const dock = document.getElementById('loading-dock');
+        const statusBox = document.getElementById('status-box');
+        const header = document.getElementById('level-header');
+        
+        function updateStatus(msg, type="info") {
+            const color = type === "error" ? "var(--danger)" : (type === "success" ? "var(--success)" : "var(--yellow)");
+            statusBox.innerHTML = `<span style="color: ${color}">> ${msg}</span>`;
+            if (type === "error") {
+                document.body.classList.remove("error-shake");
+                void document.body.offsetWidth; // trigger reflow
+                document.body.classList.add("error-shake");
+            }
+        }
+
+        function updateCounters() {
+            const targets = levels[currentLevelIndex].targets;
+            document.getElementById('count-amino').innerText = `Amino Bricks: ${placed.amino} / ${targets.amino}`;
+            document.getElementById('count-mineral').innerText = `Minerals: ${placed.mineral} / ${targets.mineral}`;
+            document.getElementById('count-calories').innerText = `Calories: ${placed.calories} / ${targets.calories}`;
+        }
+
+        function failLevel(reason) {
+            updateStatus(`STRIKE! ${reason} Shift ruined. Resetting...`, "error");
+            setTimeout(() => { loadLevel(currentLevelIndex); }, 2500);
+        }
+
+        function createDraggable(item) {
+            const div = document.createElement('div');
+            div.className = `item ${item.type}`;
+            div.id = item.id;
+            div.draggable = true;
+            div.dataset.type = item.type;
+            div.innerText = item.label;
+            
+            div.addEventListener('dragstart', (e) => {
+                draggedElement = div;
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            div.addEventListener('dragend', () => { draggedElement = null; });
+            return div;
+        }
+
+        function loadLevel(index) {
+            if (index >= levels.length) {
+                updateStatus("CAMPAIGN COMPLETE. You built a solid, flexible kid who grew taller. Boss is happy.", "success");
+                dock.innerHTML = "<h2>No more shifts.</h2>";
+                document.getElementById('btn-sleep').style.display = 'none';
+                return;
+            }
+
+            const level = levels[index];
+            header.innerText = level.title;
+            placed = { amino: 0, mineral: 0, calories: 0 };
+            
+            // Clean up old items from all zones
+            dock.innerHTML = '';
+            document.querySelectorAll('.dropzone .item').forEach(el => el.remove());
+
+            // Load new items
+            level.items.forEach(item => {
+                dock.appendChild(createDraggable(item));
+            });
+
+            updateCounters();
+            updateStatus(`[SYSTEM]: ${level.intro}`, "info");
+        }
+
+        // Drag and Drop Logic
+        const dropzones = document.querySelectorAll('.dropzone');
+
+        dropzones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('drag-over');
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('drag-over');
+            });
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                
+                if (!draggedElement) return;
+                const itemType = draggedElement.dataset.type;
+                const zoneId = zone.id;
+
+                // Routing Logic
+                if (zoneId === 'stomach-zone') {
+                    if (itemType === 'protein') {
+                        updateStatus("Demolition crew smashed the protein chain! You now have Amino Acid bricks. Route them.", "success");
+                        draggedElement.className = "item amino";
+                        draggedElement.dataset.type = 'amino';
+                        draggedElement.innerText = "🧱 Amino Acid (Brick)";
+                        dock.appendChild(draggedElement); // Goes back to dock for re-routing
+                    } else if (itemType === 'amino') {
+                        failLevel("It's already broken down into tiny bricks. Don't waste stomach acid.");
+                    } else if (itemType === 'mineral') {
+                        failLevel("Stomach acid doesn't break down concrete. You ruined the calcium deposit.");
+                    } else if (itemType === 'calories') {
+                        failLevel("Calories go to the fat closet. Don't jam up the demolition crew.");
+                    }
+                } 
+                else if (zoneId === 'muscle-zone') {
+                    if (itemType === 'amino') {
+                        updateStatus("Blood delivered amino bricks to the muscle. Good.", "success");
+                        zone.appendChild(draggedElement);
+                        draggedElement.draggable = false;
+                        placed.amino++;
+                    } else if (itemType === 'mineral') {
+                        failLevel("Muscles need to be flexible like a ruler! You just put concrete in them. The kid is paralyzed.");
+                    } else if (itemType === 'protein') {
+                        failLevel("You can't fix a knee with a whole un-smashed food chain. Send it to Demolition first.");
+                    } else {
+                        failLevel("Muscles only take amino acids.");
+                    }
+                }
+                else if (zoneId === 'bone-zone') {
+                    if (itemType === 'mineral') {
+                        updateStatus("Calcium deposited in the Bone Bank. Avoiding glass bones.", "success");
+                        zone.appendChild(draggedElement);
+                        draggedElement.draggable = false;
+                        placed.mineral++;
+                    } else if (itemType === 'amino') {
+                        failLevel("Bones need heavy materials like concrete. Protein bricks are too weak. Enjoy your glass bones.");
+                    } else {
+                        failLevel("Only minerals (calcium) go in the bone bank.");
+                    }
+                }
+                else if (zoneId === 'fat-zone') {
+                    if (itemType === 'calories') {
+                        updateStatus("Excess electricity stored in the Fat Closet.", "success");
+                        zone.appendChild(draggedElement);
+                        draggedElement.draggable = false;
+                        placed.calories++;
+                    } else {
+                        failLevel("The Fat Closet is for extra calories only. Don't waste building materials in there.");
+                    }
+                }
+                
+                updateCounters();
+            });
+        });
+
+        // Sleep / Boss Logic
+        document.getElementById('btn-sleep').addEventListener('click', () => {
+            const targets = levels[currentLevelIndex].targets;
+            
+            // Check if there are unprocessed items left in the dock
+            const itemsLeft = dock.querySelectorAll('.item').length;
+            
+            if (placed.amino === targets.amino && 
+                placed.mineral === targets.mineral && 
+                placed.calories === targets.calories &&
+                itemsLeft === 0) {
+                
+                updateStatus("DEEP SLEEP: Growth Hormone 'Boss' arrived. Crew built the materials. You wake up taller! Moving to next shift...", "success");
+                currentLevelIndex++;
+                setTimeout(() => { loadLevel(currentLevelIndex); }, 2000);
+            } else if (itemsLeft > 0) {
+                failLevel("You went to sleep with materials left on the dock! The crew went on strike.");
+            } else {
+                failLevel("You didn't meet the material quota before sleeping. The Boss is angry.");
+            }
+        });
+
+        // Initialize Game
+        loadLevel(currentLevelIndex);
+    </script>
+</body>
+</html>
